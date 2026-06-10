@@ -1,0 +1,4 @@
+.env
+*.db
+web/node_modules/
+web/build/
