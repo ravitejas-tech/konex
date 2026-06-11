@@ -272,3 +272,20 @@ web/
 - **Co-locate route components.** A route's private subcomponents live in a `components/` folder _inside that route's folder_, never in the global tree. Nested routes get their own nested `components/` folder.
 - `components/ui/` holds _only_ domain-agnostic primitives. The moment a component knows about a domain, it belongs in the relevant route's `components/` folder.
 - `queries/` wraps `api/`; components import from `queries/`, never call `api/` directly.
+
+---
+
+## ✅ Definition of Done (Checklist)
+
+A change is done when:
+
+- [ ] Files and folders are `kebab-case`; no file exceeds ~150 lines.
+- [ ] Logic lives in the right place (route / feature / `ui` primitive / `queries`).
+- [ ] Data comes from React Query Kit hooks — no direct `useQuery`/`useMutation`, no API calls in components.
+- [ ] Forms use React Hook Form + Zod, with types inferred from the schema.
+- [ ] No `any`, no `!` assertions; `strict` passes clean.
+- [ ] Loading, error, and empty states are all handled.
+- [ ] Styling uses Tailwind tokens (no magic numbers); long class lists use `cn()`.
+- [ ] Animations respect `prefers-reduced-motion` and animate cheap properties.
+- [ ] Interactive elements are keyboard-accessible with visible focus and labels.
+- [ ] Type-check, lint, and format are all green.
