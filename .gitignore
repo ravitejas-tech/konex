@@ -1,4 +1,5 @@
 .env
 *.db
+pb_data/
 web/node_modules/
 web/build/

@@ -1,24 +1,27 @@
 services:
   api:
+    image: konex-api:local
     build:
       context: ./api
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
-      PORT: "8080"
-      DATABASE_PATH: "/data/konex.db"
+      PB_DATA_DIR: "/app/pb_data"
+      APP_NAME: "konex"
+      APP_ENV: "production"
     volumes:
-      - api-data:/data
+      - api-data:/app/pb_data
     restart: unless-stopped
 
   web:
+    image: konex-web:local
     build:
       context: ./web
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      VITE_API_URL: "http://localhost:8080"
+      VITE_API_URL: "http://localhost:8090"
     depends_on:
       - api
     restart: unless-stopped

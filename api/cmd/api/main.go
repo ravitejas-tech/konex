@@ -1,51 +1,64 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/ravitejas/konex/api/internal/db"
-	"github.com/ravitejas/konex/api/internal/handler"
+	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/ravitejas/konex/api/internal/handlers"
+	"github.com/ravitejas/konex/api/internal/hooks"
 )
 
 func main() {
-	_ = godotenv.Load()
-
-	database, err := db.Open()
-	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
-	}
-	defer database.Close()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", handler.Health())
-	mux.HandleFunc("GET /items", handler.ListItems(database))
-	mux.HandleFunc("POST /items", handler.CreateItem(database))
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Load .env file before PocketBase initialization.
+	// This allows you to set custom app-level environment variables.
+	// PocketBase's own config (--dir, --http) is handled via CLI flags.
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
 	}
 
-	addr := fmt.Sprintf(":%s", port)
-	log.Printf("API listening on %s", addr)
-	if err := http.ListenAndServe(addr, corsMiddleware(mux)); err != nil {
+	// Optional: override PocketBase's data directory via env var.
+	// This injects the --dir flag so PocketBase uses the specified path.
+	if dataDir := os.Getenv("PB_DATA_DIR"); dataDir != "" {
+		found := false
+		for _, arg := range os.Args {
+			if arg == "--dir" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			os.Args = append(os.Args, "--dir", dataDir)
+		}
+	}
+
+	app := pocketbase.New()
+
+	// Register custom API routes via the OnServe hook.
+	// This fires after PocketBase's internal initialization is complete
+	// and the router is ready to accept route bindings.
+	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		handlers.RegisterRoutes(se)
+		return se.Next()
+	})
+
+	// Register record lifecycle hooks.
+	// These fire on every record create/update/delete regardless of
+	// whether the operation comes from the API, Admin UI, or Go code.
+	hooks.RegisterItemHooks(app)
+
+	// Start the PocketBase server.
+	// This blocks and serves:
+	//   - Admin UI at /_/
+	//   - Built-in REST API at /api/
+	//   - Custom routes at /api/custom/
+	//
+	// Use CLI flags to configure:
+	//   ./api serve --http=0.0.0.0:8090 --dir=./pb_data
+	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
